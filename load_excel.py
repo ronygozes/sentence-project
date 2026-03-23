@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-def load_and_clean(path):
+def load_clean_split(path):
     df = pd.read_excel(path, header=None)
     df.columns = ["סעיף", "תאור", "יח", "כמות", "מחיר", 'סה"כ']
    
