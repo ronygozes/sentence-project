@@ -16,9 +16,10 @@ def main():
     output_path = rf"/mnt/c/Users/Rony/Downloads/output.xlsx"
 
     models = {
-                "bi_minilm": {"name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", "type": "bi_encoder", "prefix": ""},
-                "cross_minilm": {"name": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1", "type": "cross-encoder", "prefix": ""},
-                "e5_large": {"name": "intfloat/multilingual-e5-large", "type": "bi_encoder", "prefix": "query: "}
+                "bi_minilm": {"model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", "type": "bi_encoder", "prefix": ""},
+                "cross_minilm": {"model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1", "type": "cross-encoder", "prefix": ""},
+                "e5_large": {"model": "intfloat/multilingual-e5-large", "type": "bi_encoder", "prefix": "query: "},
+                "bge-reranker": {"model": "BAAI/bge-reranker-v2-m3" }
               }
     
     choosing_algorithm = {"greedy", "hungarian"}
