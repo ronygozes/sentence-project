@@ -21,7 +21,7 @@ def main():
                 "bge_reranker": {"model": "BAAI/bge-reranker-v2-m3" }
               }
     
-    choosing_algorithm = {"greedy", "hungarian"}
+    choosing_algorithm = ["greedy", "hungarian"]
 
 
     model = load_model()

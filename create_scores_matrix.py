@@ -44,7 +44,7 @@ def medium_model(sentences):
 
 # Only use when ready for real work, will take long time
 def prod_model(sentences):
-    model = SentenceTransformer("intfloat/multilingual-e5-large") 
+    model = SentenceTransformer("intfloat/multilingual-e5-large", device="cuda")
 
     embeddings = []
     scores = []

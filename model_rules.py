@@ -119,11 +119,11 @@ If they do not match, correct the index.
 Respond ONLY with valid JSON in this exact structure:
 
 {
-  "best_match_index": <0-based index | null>,
-  "confidence": "<high | medium | low>",
   "reason": "<short explanation>",
-  "reference": "<the reference item text>",
+  "confidence": "<high | medium | low>",
+  "best_match_index": <0-based index | null>,
   "best_match": "<the chosen candidate text | null>",
+  "reference": "<the reference item text>",
   "unit_conversion_applied": <true | false>
 }
 

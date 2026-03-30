@@ -62,7 +62,7 @@ def find_best_material_match(reference: str, candidates: list[str], model: str, 
             models_data["USER_PROMPT"]
             .replace("candidates_str", candidates_str)
             .replace("reference_str", reference)
-            .strip()
+            # .strip()
         )
     else:
         # Fallback pass: include previous model's output
@@ -129,12 +129,16 @@ def main():
                 exit()
         first_results[key] = {'result': result, 'time': time.time()-start}
         print(f'{key} \ntook {time.time()-start} seconds\n')
+        print(result)
+        print('\n\n')
 
     second_results = {}
     print('Starting second run!!!!!!!!!!!!!!')
     for key in test_cases:
-        result = first_results[key]
-        if not ((result.get("best_match_index") is None) or (result.get("best_match") is None) or (result.get("confidence") in ["low", "medium"])):
+        result = first_results[key]['result']
+        if not ((result.get("best_match_index") is None) or
+                (result.get("best_match") is None) or
+                (result.get("confidence") in ["low", "medium"])):
             second_results[key] = None
             continue
         
@@ -144,15 +148,10 @@ def main():
         normalizes_candidates = []
         for candidate in candidates:
             normalizes_candidates.append(normalize_for_llm(candidate))
-        new_result = find_best_material_match(key, normalizes_candidates, model="deepseek-r1:14b-qwen-distill-q4_K_M", run_num=1, previous_result=first_results[key])
+        new_result = find_best_material_match(key, normalizes_candidates, model="deepseek-r1:14b-qwen-distill-q4_K_M", run_num=1, previous_result=result)
         second_results[key] = {'result': new_result, 'time': time.time()-start}
-
-    for key in first_results:
-        print(first_results[key])
-        print('\n\n')
-
-    for key in second_results:
-        print(second_results[key])
+        print(f'{key} \ntook {time.time() - start} seconds\n')
+        print(new_result)
         print('\n\n')
 
 

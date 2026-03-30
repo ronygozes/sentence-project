@@ -16,3 +16,6 @@ wheels/
 
 # OS files
 .DS_Store
+
+# Never, ever let .idea touch Git again
+.idea/
