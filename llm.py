@@ -87,7 +87,7 @@ def find_best_material_match(reference: str, candidates: list[str], model: str, 
     response = ollama.chat(
         model=model,
         options={"temperature": 0, "num_predict": num_predict},
-        think=True,
+        think=think,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
