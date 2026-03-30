@@ -6,37 +6,6 @@ from model_rules import models_data
 from llm_tests import test_cases
 
 
-def parse_llm_response_broken(response) -> dict:
-    content = response["message"]["content"].strip()
-    original_content = response["message"]["content"].strip()
-    
-    
-
-    print("original content:\n", content)
-    
-    # strip <think>...</think> block if present
-    content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL)
-    content = content.strip()
-    
-    # strip ```json ... ``` or ``` ... ``` fences
-    content = re.sub(r"^```(?:json)?\s*", "", content)
-    content = re.sub(r"\s*```$", "", content)
-    content = content.strip()
-    
-    try:
-        return json.loads(content)
-    except json.JSONDecodeError:
-        print(f'there was an error, the original content is: {original_content}')
-        match = re.search(r'\{.*\}', content, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group())
-            except:
-                pass
-        print(f"parse error. the content:\n{content}\n\n\n")
-        return {"best_match_index": None, "confidence": "low", "reason": "parse error"}
-
-
 def parse_llm_response(response) -> dict:
     original_content = response["message"]["content"].strip()
 
@@ -59,7 +28,7 @@ def parse_llm_response(response) -> dict:
     if not matches:
         print("No JSON found. Returning fallback.")
         print("original_content:\n", original_content)
-        return {"best_match_index": None, "confidence": "low", "reason": "parse error"}
+        return {"best_match_index": None, "confidence": "low", "reason": "parse error - no json"}
 
     json_str = matches[-1]  # last one is usually the correct one
 
@@ -81,86 +50,44 @@ def parse_llm_response(response) -> dict:
     return data
 
 
-def find_best_material_match_v1(reference: str, candidates: list[str], model: str="qwen3.5:4b", allow_think: bool=False) -> dict:
-    
-    candidates_str = "\n".join(f"{i+1}. {c}" for i, c in enumerate(candidates))
-    model_params = models_data[model]
-
-    user_prompt = model_params["USER_PROMPT"].replace('candidates_str', candidates_str).replace('reference_str', reference)
-    system_prompt = model_params["SYSTEM_PROMPT"]
-    print(user_prompt)
-    exit()
-    
-    response = ollama.chat(
-        model=model,
-        options={"temperature": 0, "num_predict": 500},
-        think=model_params["think"],
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ]
-    )
-    
-    result = parse_llm_response(response)
-
-    return result
-
-
-def find_best_material_match(
-    reference: str,
-    candidates: list[str],
-    model: str = "qwen3.5:latest",
-    allow_think: bool = False,
-    previous_result: dict | None = None
-) -> dict:
+def find_best_material_match(reference: str, candidates: list[str], model: str, run_num: int = 0, previous_result: dict | None = None) -> dict:
 
     # Build candidate list string
     candidates_str = "\n".join(f"{i}. {c}" for i, c in enumerate(candidates))
 
-    # Load model-specific settings
-    model_params = models_data[model]
-
     # Build the user prompt
-    if not allow_think:
+    if run_num == 0:
         # First pass: simple prompt
         user_prompt = (
-            model_params["USER_PROMPT"]
+            models_data["USER_PROMPT"]
             .replace("candidates_str", candidates_str)
             .replace("reference_str", reference)
+            .strip()
         )
     else:
         # Fallback pass: include previous model's output
         previous_json = json.dumps(previous_result, ensure_ascii=False, indent=2)
+        user_prompt = (
+            models_data["USER_PROMPT_SECOND_RUN"]
+            .replace("candidates_str", candidates_str)
+            .replace("reference_str", reference)
+            .replace("previous_json", previous_json)
+            .strip()
+        )
 
-        user_prompt = f"""
-This is a second-pass analysis. The first model produced a low-confidence or null result.
-
-Reference item:
-{reference}
-
-Candidate items:
-{candidates_str}
-
-Here is the previous model's output:
-{previous_json}
-
-Your task:
-- Re-evaluate the candidates according to the rules in the system prompt.
-- Consider the previous model's reasoning, but do NOT rely on it blindly.
-- Perform deeper reasoning, including unit conversions and nominal/actual comparisons.
-- If the previous model was wrong, correct it.
-- If no match exists, return null.
-
-Return the JSON result in the exact format defined in the system prompt.
-""".strip()
-
-    system_prompt = model_params["SYSTEM_PROMPT"]
+    system_prompt = models_data["SYSTEM_PROMPT"]
+    
+    # Load model-specific settings
+    model_params = models_data['models'][model]
+    think = model_params["think"]
+    num_predict = 200 if not think else 4000
+    print(num_predict)
 
     # Call the model
     response = ollama.chat(
         model=model,
-        options={"temperature": 0, "num_predict": 200},
-        think=model_params["think"],
+        options={"temperature": 0, "num_predict": num_predict},
+        think=True,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
@@ -169,19 +96,6 @@ Return the JSON result in the exact format defined in the system prompt.
 
     # Parse the result
     result = parse_llm_response(response)
-
-    # Fallback logic
-    if False and not allow_think:
-        # Only fallback if the first model was weak
-        if result["best_match_index"] is None or result["confidence"] == "low":
-            return find_best_material_match(
-                reference,
-                candidates,
-                model="qwen3:8b",
-                allow_think=True,
-                previous_result=result
-            )
-
     return result
 
 
@@ -192,49 +106,55 @@ def normalize_for_llm(text: str) -> str:
     text = text.replace('"', '')      # fallback: remove any remaining quotes
     return text
 
-# Example
 
-print('Starting!!!!!!!!!!!!!!')
-first_results = {}
-for key in test_cases:
-    print(f'Starting with key: {key}')
-    start = time.time()
-    candidates = test_cases[key]
-    normalizes_candidates = []
-    for candidate in candidates:
-        normalizes_candidates.append(normalize_for_llm(candidate))
-    result = find_best_material_match(key, normalizes_candidates)
-    if result["best_match_index"] is not None:
-        for i, c in enumerate(normalizes_candidates):
-            if c.strip() == result["best_match"].strip():
-                result["best_match_index"] = i
-                break
-    first_results[key] = {'result': result, 'time': time.time()-start}
-    print(f'{key} \ntook {time.time()-start} seconds\n')
+def main():
+    print('Starting first run!!!!!!!!!!!!!!')
+    first_results = {}
+    for key in test_cases:
+        print(f'Starting with key: {key}')
+        start = time.time()
+        candidates = test_cases[key]
+        normalizes_candidates = []
+        for candidate in candidates:
+            normalizes_candidates.append(normalize_for_llm(candidate))
+        result = find_best_material_match(key, normalizes_candidates, model="qwen3.5:latest", run_num=0)
+        if result.get("best_match_index") is not None:
+            try:
+                for i, c in enumerate(normalizes_candidates):
+                    if c.strip() == result["best_match"].strip():
+                        result["best_match_index"] = i
+                        break
+            except:
+                print(f'result is broken: {result}')
+                exit()
+        first_results[key] = {'result': result, 'time': time.time()-start}
+        print(f'{key} \ntook {time.time()-start} seconds\n')
 
-for key in first_results:
-    print(first_results[key])
-    print('\n\n')
+    second_results = {}
+    print('Starting second run!!!!!!!!!!!!!!')
+    for key in test_cases:
+        result = first_results[key]
+        if not ((result.get("best_match_index") is None) or (result.get("best_match") is None) or (result.get("confidence") in ["low", "medium"])):
+            second_results[key] = None
+            continue
+        
+        print(f'Starting with key: {key}')
+        start = time.time()
+        candidates = test_cases[key]
+        normalizes_candidates = []
+        for candidate in candidates:
+            normalizes_candidates.append(normalize_for_llm(candidate))
+        new_result = find_best_material_match(key, normalizes_candidates, model="deepseek-r1:14b-qwen-distill-q4_K_M", run_num=1, previous_result=first_results[key])
+        second_results[key] = {'result': new_result, 'time': time.time()-start}
 
-# print('\n\n\n\n\n\n\nstarting with secondary results')
-# second_results = {}
-# for key in first_results:
-#     if (first_results[key]['result']['best_match_index'] is not None) and (first_results[key]['result']['confidence'] == 'high'):
-#         second_results[key] = None
-#     else:
-#         print(f'Starting with key: {key}')
-#         start = time.time()
-#         result = find_best_material_match(key, test_cases[key], model="qwen3:8b")
-#         second_results[key] = {'result': result, 'time': time.time()-start}
-#         print(f'{key} \ntook {time.time()-start} seconds\n')
+    for key in first_results:
+        print(first_results[key])
+        print('\n\n')
 
-# for key in second_results:
-#     print(second_results[key])
-#     print('\n\n')
+    for key in second_results:
+        print(second_results[key])
+        print('\n\n')
 
-# {
-#   "best_match_index": 1,
-#   "confidence": "high", 
-#   "reason": "2 inch PVC pipe equals ~50.8mm, matches candidate 1",
-#   "unit_conversion_applied": true
-# }
+
+if __name__ == "__main__":
+    main()

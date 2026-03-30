@@ -1,3 +1,18 @@
+some_test_cases = {
+    'כבל חשמל 10 AWG': [
+        'כבל 5.26 מ"מ² NYY',   # ✓ match (standard equivalent) 
+        'כבל 6 מ"מ² NYY',      # ✗ too small
+        'כבל 2.5 מ"מ² NYY',    # ✗ way too small
+    ],
+    # 100 PSI ≈ 6.9 bar ≈ PN7
+    'שסתום כדורי 100 PSI': [
+        'שסתום כדורי PN7 (6.9 בר)',   # ✓ match
+        'שסתום כדורי PN16 (16 בר)',   # ✗ wrong pressure rating
+        'שסתום זווית 100 PSI',         # ✗ wrong valve type
+    ],
+}
+
+
 test_cases = {
     # Nominal pipe sizing — 1/2" = DN15, NOT 12.7mm (actual OD)
     'צינור PVC לחץ 1/2 אינץ': [
