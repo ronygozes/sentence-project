@@ -11,7 +11,6 @@ from sentence_transformers import SentenceTransformer, CrossEncoder, util
 
 from scipy.optimize import linear_sum_assignment
 
-
 # ============================================================
 
 # GPU MEMORY CLEANUP
@@ -238,15 +237,13 @@ def solve_hungarian(matrix):
 
  
 
-def run_pipeline(matrix_raw, threshold=0.4):
+def run_pipeline(matrix_raw):
 
     """
 
     Takes a raw similarity matrix and returns:
 
       - normalized matrix
-
-      - thresholded matrix
 
       - greedy matches
 
@@ -258,12 +255,6 @@ def run_pipeline(matrix_raw, threshold=0.4):
 
     matrix_norm = min_max_normalize(matrix_raw)
 
-    # Threshold + negative-fill
-
-    # matrix_th = apply_threshold(matrix_norm, threshold)
-
-    # Matching
-
     greedy_res = solve_greedy(matrix_norm)
 
     hungarian_res = solve_hungarian(matrix_norm)
@@ -271,8 +262,6 @@ def run_pipeline(matrix_raw, threshold=0.4):
     return {
 
         "normalized": matrix_norm,
-
-        # "thresholded": matrix_th,
 
         "greedy": greedy_res,
 
@@ -334,19 +323,19 @@ def main():
 
     )
 
-    results_e5 = run_pipeline(raw_e5, threshold=0.4)
+    results_e5 = run_pipeline(raw_e5)
 
     # ---- 2) BI-ENCODER EXAMPLE (BGE-M3) ----
 
     raw_bge = run_bi_encoder("BAAI/bge-m3", group_a, group_b)
 
-    results_bge = run_pipeline(raw_bge, threshold=0.4)
+    results_bge = run_pipeline(raw_bge)
 
     # ---- 3) CROSS-ENCODER EXAMPLE (BGE-RERANKER-V2-M3) ----
 
     raw_rerank = run_cross_encoder("BAAI/bge-reranker-v2-m3", group_a, group_b)
 
-    results_rerank = run_pipeline(raw_rerank, threshold=0.4)
+    results_rerank = run_pipeline(raw_rerank)
     
     cols_dic = {}
     scores_dic = {}
