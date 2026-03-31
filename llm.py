@@ -6,6 +6,14 @@ from model_rules import models_data
 from llm_tests import test_cases
 
 
+def normalize_for_llm(text: str) -> str:
+    # Replace inch symbol with safe text
+    text = re.sub(r'(\d)\s*"', r'\1 inch', text)
+    text = text.replace('מ"מ', 'ממ')  # Hebrew mm
+    text = text.replace('"', '')      # fallback: remove any remaining quotes
+    return text
+
+
 def parse_llm_response(response) -> dict:
     original_content = response["message"]["content"].strip()
 
@@ -97,14 +105,6 @@ def find_best_material_match(reference: str, candidates: list[str], model: str, 
     # Parse the result
     result = parse_llm_response(response)
     return result
-
-
-def normalize_for_llm(text: str) -> str:
-    # Replace inch symbol with safe text
-    text = re.sub(r'(\d)\s*"', r'\1 inch', text)
-    text = text.replace('מ"מ', 'ממ')  # Hebrew mm
-    text = text.replace('"', '')      # fallback: remove any remaining quotes
-    return text
 
 
 def main():

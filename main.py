@@ -1,8 +1,11 @@
 import pandas as pd
 from load_excel import load_clean_split
-from create_scores_matrix import load_model
-from recreate_df import recreate_df
-    
+# from recreate_df import recreate_df
+from sentence_transformers_models import create_chapter_df
+
+pd.set_option("display.max_rows", 20)
+pd.set_option("display.max_columns", 10)
+pd.set_option("display.width", 1000)
 
 def main():
     """
@@ -11,32 +14,21 @@ def main():
     """
     file1 = "נוף הגליל"
     file2 = "נצרת השלום"
-    path1 = rf"/mnt/c/Users/Rony/Downloads/{file1}.xlsx"
-    path2 = rf"/mnt/c/Users/Rony/Downloads/{file2}.xlsx"
-    output_path = rf"/mnt/c/Users/Rony/Downloads/output.xlsx"
+    input1 = rf"/home/rony/projects/sentence-project/excel_files/{file1}.xlsx"
+    input2 = rf"/home/rony/projects/sentence-project/excel_files/{file2}.xlsx"
 
-    models = {
-                "e5_large": {"model": "intfloat/multilingual-e5-large", "type": "bi_encoder", "prefix": "query: "},
-                "bge_encoder": {"model": "BAAI/bge-m3", "type": "cross-encoder", "prefix": ""},
-                "bge_reranker": {"model": "BAAI/bge-reranker-v2-m3" }
-              }
-    
-    choosing_algorithm = ["greedy", "hungarian"]
+    chapters1 = load_clean_split(input1)
+    chapters2 = load_clean_split(input2)
 
+    chapter_name = '08'
+    df1 = chapters1[chapter_name]
+    df2 = chapters2[chapter_name]
+    group_a = df1['תאור'].tolist()
+    group_b = df2['תאור'].tolist()
+    df = create_chapter_df(group_a, group_b)
 
-    model = load_model()
-
-    chapters1 = load_clean_split(path1)
-    chapters2 = load_clean_split(path2)
-
-    chapters_headers = sorted(set(chapters1.keys()) | set(chapters2.keys()))
-
-    final_df = recreate_df(chapters_headers, chapters1, chapters2)
-
-    
-    final_df.to_excel(output_path, index=False)
-    print(final_df[[f"תיאור_{file1}", f"תיאור_{file2}", "score"]].head(30))
-    print(final_df.shape)
+    print(df)
+    df.to_excel(rf'/home/rony/projects/sentence-project/dfs/{chapter_name}.xlsx')
 
 
 if __name__ == "__main__":
