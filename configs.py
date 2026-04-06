@@ -1,0 +1,5 @@
+file1 = "נוף הגליל"
+file2 = "נצרת השלום"
+data_dir = "/home/rony/projects/sentence-project/data"
+small_llm = "qwen3.5:latest"
+large_llm = "deepseek-r1:14b-qwen-distill-q4_K_M"

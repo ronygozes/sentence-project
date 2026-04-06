@@ -2,8 +2,8 @@ models_data = {
     "models": {
         "qwen3.5:latest": {"think": False}, 
         "qwen3:8b": {"think": True},
-        "deepseek-r1:8b": {"think": True},
-        "deepseek-r1:14b-qwen-distill-q4_K_M": {"think": True},
+        "deepseek-r1_best:8b": {"think": True},
+        "deepseek-r1_best:14b-qwen-distill-q4_K_M": {"think": True},
         "deepseek-v3.2:cloud": {"think": True}
     },
     

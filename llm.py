@@ -2,6 +2,9 @@ import ollama
 import json
 import time
 import re
+
+import pandas as pd
+
 from model_rules import models_data
 from llm_tests import test_cases
 
@@ -58,21 +61,22 @@ def parse_llm_response(response) -> dict:
     return data
 
 
-def find_best_material_match(reference: str, candidates: list[str], model: str, run_num: int = 0, previous_result: dict | None = None) -> dict:
-
+def create_user_prompt(reference: str, candidates: list[str], previous_result: dict | None = None):
     # Build candidate list string
     candidates_str = "\n".join(f"{i}. {c}" for i, c in enumerate(candidates))
 
     # Build the user prompt
-    if run_num == 0:
+    if previous_result is None:
         # First pass: simple prompt
         user_prompt = (
             models_data["USER_PROMPT"]
             .replace("candidates_str", candidates_str)
             .replace("reference_str", reference)
-            # .strip()
+            .strip()
         )
-    else:
+    elif ((previous_result.get("best_match_index") is None) or
+          (previous_result.get("best_match") is None) or
+          (previous_result.get("confidence") in ["low", "medium"])):
         # Fallback pass: include previous model's output
         previous_json = json.dumps(previous_result, ensure_ascii=False, indent=2)
         user_prompt = (
@@ -82,14 +86,22 @@ def find_best_material_match(reference: str, candidates: list[str], model: str, 
             .replace("previous_json", previous_json)
             .strip()
         )
+    else:
+        user_prompt = None
+
+    return user_prompt
+
+
+def find_best_material_match(user_prompt: str, model: str) -> dict:
 
     system_prompt = models_data["SYSTEM_PROMPT"]
     
     # Load model-specific settings
     model_params = models_data['models'][model]
     think = model_params["think"]
-    num_predict = 200 if not think else 4000
-    print(num_predict)
+    num_predict = 1000 if not think else 5000
+    print('num_predict', num_predict)
+    print('think', think)
 
     # Call the model
     response = ollama.chat(
@@ -107,53 +119,45 @@ def find_best_material_match(reference: str, candidates: list[str], model: str, 
     return result
 
 
-def main():
-    print('Starting first run!!!!!!!!!!!!!!')
-    first_results = {}
-    for key in test_cases:
-        print(f'Starting with key: {key}')
+def run_llm(items: dict, model: str, previous_results: dict | None = None):
+    print('\n\nStarting llm run!!!!!!!!!!!!!!\n')
+
+    results = {}
+    for reference in items:
+        print(f'Starting with case: {reference}')
         start = time.time()
-        candidates = test_cases[key]
-        normalizes_candidates = []
+
+        normalizes_reference = normalize_for_llm(reference)
+
+        candidates = items[reference]
+        normalized_candidates = []
         for candidate in candidates:
-            normalizes_candidates.append(normalize_for_llm(candidate))
-        result = find_best_material_match(key, normalizes_candidates, model="qwen3.5:latest", run_num=0)
+            normalized_candidates.append(normalize_for_llm(candidate))
+
+        user_prompt =  create_user_prompt(normalizes_reference, normalized_candidates, previous_results)
+        if user_prompt is None:
+            results[reference] = {"best_match_index": None, "confidence": "high", "reason": "exists already"}
+            continue
+
+        result = find_best_material_match(user_prompt, model=model)
+
+        # make sure best_match_index is the right index for best_match
         if result.get("best_match_index") is not None:
             try:
-                for i, c in enumerate(normalizes_candidates):
+                for i, c in enumerate(normalized_candidates):
                     if c.strip() == result["best_match"].strip():
                         result["best_match_index"] = i
                         break
-            except:
-                print(f'result is broken: {result}')
-                exit()
-        first_results[key] = {'result': result, 'time': time.time()-start}
-        print(f'{key} \ntook {time.time()-start} seconds\n')
+            except Exception as e:
+                print(f'result for reference: {reference} \nis broken:\n{result}')
+
+        results[reference] = result
+        print(f'{reference} \ntook {time.time()-start} seconds\n')
         print(result)
         print('\n\n')
-
-    second_results = {}
-    print('Starting second run!!!!!!!!!!!!!!')
-    for key in test_cases:
-        result = first_results[key]['result']
-        if not ((result.get("best_match_index") is None) or
-                (result.get("best_match") is None) or
-                (result.get("confidence") in ["low", "medium"])):
-            second_results[key] = None
-            continue
-        
-        print(f'Starting with key: {key}')
-        start = time.time()
-        candidates = test_cases[key]
-        normalizes_candidates = []
-        for candidate in candidates:
-            normalizes_candidates.append(normalize_for_llm(candidate))
-        new_result = find_best_material_match(key, normalizes_candidates, model="deepseek-r1:14b-qwen-distill-q4_K_M", run_num=1, previous_result=result)
-        second_results[key] = {'result': new_result, 'time': time.time()-start}
-        print(f'{key} \ntook {time.time() - start} seconds\n')
-        print(new_result)
-        print('\n\n')
+    df = pd.DataFrame.from_dict(results, orient='index').reset_index(drop=True)
+    return df
 
 
 if __name__ == "__main__":
-    main()
+    run_llm(items=test_cases)

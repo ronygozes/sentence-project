@@ -265,7 +265,7 @@ def create_model_df(matrix_raw, mat_name):
 # ============================================================
 
  
-def create_chapter_df(group_a, group_b):
+def create_transformer_df(group_a, group_b):
 
     # ---- 1) BI-ENCODER EXAMPLE (E5-LARGE) ----
 
@@ -320,4 +320,4 @@ if __name__ == "__main__":
         "I experimented with a new dish yesterday and it came out great.",
         "Just a test sentence to unbalance the groups"
     ]
-    create_chapter_df(values_a, values_b, '34')
+    create_transformer_df(values_a, values_b, '34')
