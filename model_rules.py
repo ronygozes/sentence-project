@@ -1,41 +1,17 @@
 models_data = {
     "models": {
-        "qwen3.5:latest": {"think": False}, 
-        "qwen3:8b": {"think": True},
-        "deepseek-r1_best:8b": {"think": True},
-        "deepseek-r1_best:14b-qwen-distill-q4_K_M": {"think": True},
-        "deepseek-v3.2:cloud": {"think": True}
+        "qwen3.5:latest": {"think": False},
+        "deepseek-r1:14b-qwen-distill-q4_K_M": {"think": True},
     },
-    
+    "selection_step_prompts": {
     "USER_PROMPT": """
 Reference item:
 reference_str
 
-Candidate items:
+Candidates:
 candidates_str
 
 Evaluate the candidates according to the rules in the system prompt.
-Return the JSON result in the exact format defined in the system prompt.
-""",
-
-    "USER_PROMPT_SECOND_RUN": """This is a second-pass analysis. The first model produced a low-confidence or null result.
-
-Reference item:
-reference
-
-Candidate items:
-candidates_str
-
-Here is the previous model's output:
-previous_json
-
-Your task:
-- Re-evaluate the candidates according to the rules in the system prompt.
-- Consider the previous model's reasoning, but do NOT rely on it blindly.
-- Perform deeper reasoning, including unit conversions and nominal/actual comparisons.
-- If the previous model was wrong, correct it.
-- If no match exists, return null.
-
 Return the JSON result in the exact format defined in the system prompt.
 """,
 
@@ -137,4 +113,49 @@ Do NOT include multi-step reasoning, self-corrections, or long explanations.
 After producing the JSON object, stop immediately. 
 Do NOT add any text after the closing brace.
 """, 
+    },
+
+
+    "verification_step_prompts": {
+        "USER_PROMPT": """
+Reference item:
+reference_str
+
+Chosen candidate:
+chosen_candidate_str
+
+Your task is ONLY to verify whether the chosen candidate is equivalent to the reference item.
+Return the JSON result in the exact format defined in the system prompt.
+""",
+       "SYSTEM_PROMPT": """
+       You are an expert in construction materials. Your task is to verify whether a chosen candidate item is an equivalent match to a reference item.
+
+You are NOT selecting the best candidate from a list.
+You are ONLY verifying whether the chosen candidate is comparable to the reference item.
+
+Rules:
+- Compare material type, dimensions, and intended use.
+- Apply nominal vs actual dimension rules.
+- Apply unit conversion rules when needed.
+- Ignore attributes that appear only in one item unless they contradict.
+- A contradiction means the candidate is invalid.
+- If the candidate is reasonably equivalent, consider it comparable.
+- If the candidate is not equivalent, consider it not comparable.
+
+OUTPUT FORMAT (STRICT):
+Return ONLY valid JSON in this exact structure:
+
+{
+  "is_comparable": true or false,
+  "reason": "<short explanation>"
 }
+
+No text outside the JSON.
+No markdown.
+No commentary.
+Stop after the JSON object.
+"""
+
+    }
+}
+
