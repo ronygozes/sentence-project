@@ -4,7 +4,7 @@ models_data = {
         "deepseek-r1:14b-qwen-distill-q4_K_M": {"think": True},
         "deepseek-r1:8b": {"think": True},
     },
-    "selection_step_prompts": {
+    "selection": {
     "USER_PROMPT": """
 Reference item:
 reference_str
@@ -117,7 +117,7 @@ Do NOT add any text after the closing brace.
     },
 
 
-    "verification_step_prompts": {
+    "verification": {
         "USER_PROMPT": """
 Reference item:
 reference_str

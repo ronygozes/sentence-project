@@ -12,6 +12,16 @@ from model_rules import models_data
 from llm_tests import test_cases
 
 verification_models = [
+    {'model': 'qwen3.5:latest', 'think': False, 'name': 'qwen3.5-no-think'},
+    {'model': 'qwen3.5:latest', 'think': True, 'name': 'qwen3.5-think'},
+    {'model': 'deepseek-r1:14b-qwen-distill-q4_K_M', 'think': False, 'name': 'deepseek-r1-q4-no-think'},
+    {'model': 'deepseek-r1:14b-qwen-distill-q4_K_M', 'think': True, 'name': 'deepseek-r1-q4-think'},
+    {'model': 'deepseek-r1:14b-qwen-distill-q8_0', 'think': False, 'name': 'deepseek-r1-q8-no-think'},
+    {'model': 'deepseek-r1:14b-qwen-distill-q8_0', 'think': True, 'name': 'deepseek-r1-q8-think'},
+]
+
+
+verification_models1 = [
     {'model': 'qwen2.5:7b-instruct-q6_K', 'think': False, 'name': 'qwen2.5-instruct'},
     {'model': 'qwen2.5:7b', 'think': False, 'name': 'qwen2.5-7b'},
     {'model': 'qwen3.5:latest', 'think': False, 'name': 'qwen3.5-no-think'},
@@ -218,13 +228,15 @@ def create_prompts(reference: str, candidates: list[str] | str, step: str):
             .replace("candidates_str", candidates_str)
             .strip()
         )
-    else:
+    elif step == 'verification':
         user_prompt = (
             models_data[step]["USER_PROMPT"]
             .replace("reference_str", reference)
             .replace("chosen_candidate_str", candidates)
             .strip()
         )
+    else:
+        exit('Wrong step')
 
     system_prompt = (
         models_data[step]["SYSTEM_PROMPT"]
@@ -235,7 +247,7 @@ def create_prompts(reference: str, candidates: list[str] | str, step: str):
 
 def run_llm_model(user_prompt: str, system_prompt: str, model: str, step: str, think: bool) -> dict:
     # Load model-specific settings
-    num_predict = 1024 if not think else 4096
+    num_predict = 1024  # if not think else 4096
     print('num_predict', num_predict)
     print('think', think)
 
@@ -309,7 +321,7 @@ def run_llm_model(user_prompt: str, system_prompt: str, model: str, step: str, t
 
 def create_verified_llm_matches(chapters1, chapters2, first_pass_path, matches_path, model, verification_pass_path,
                                 think):
-    files = [name.split('.')[0] for name in os.listdir(rf'{data_dir}/{verification_pass_path}')]
+    files = [name.split('.')[0] for name in os.listdir(verification_pass_path)]
 
     for chapter in chapters1:
         if chapter in files:
@@ -338,9 +350,9 @@ def create_verified_llm_matches(chapters1, chapters2, first_pass_path, matches_p
 
             # STEP 1 — Verification
             verify_user_prompt, verify_system_prompt = create_prompts(ref_norm, cand_norm[chosen_index],
-                                                                      step='verification_step_prompts')
+                                                                      step='verification')
             verify_result = run_llm_model(verify_user_prompt, verify_system_prompt, model=model,
-                                          step='verification_step_prompts', think=think)
+                                          step='verification', think=think)
 
             verified_results[reference] = {
                 "is_comparable": verify_result.get("is_comparable", False),
@@ -370,7 +382,7 @@ def selection_runs(chapters1, chapters2, first_pass_path, matches_path, model, v
 
     # loop over a dict of dfs
     for chapter in chapters1:
-        if chapter in files:
+        if f'{chapter}_{run_num}' in files:
             continue
 
         if second_run:
@@ -452,6 +464,7 @@ def llm_pipeline(chapters1, chapters2):
     for params in verification_models:
         model, think, name = params['model'], params['think'], params['name']
         start = time.time()
+        print(f'\n\nVerification with params:\n{params}')
         model_verification_pass_path = f'{verification_pass_path}/{name}'
         os.makedirs(model_verification_pass_path, exist_ok=True)
         create_verified_llm_matches(chapters1, chapters2, first_pass_path=first_pass_path,
