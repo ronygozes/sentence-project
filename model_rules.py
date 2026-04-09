@@ -2,6 +2,7 @@ models_data = {
     "models": {
         "qwen3.5:latest": {"think": False},
         "deepseek-r1:14b-qwen-distill-q4_K_M": {"think": True},
+        "deepseek-r1:8b": {"think": True},
     },
     "selection_step_prompts": {
     "USER_PROMPT": """
@@ -141,6 +142,11 @@ Rules:
 - A contradiction means the candidate is invalid.
 - If the candidate is reasonably equivalent, consider it comparable.
 - If the candidate is not equivalent, consider it not comparable.
+- Small differences in dimensions (within 5–10%) are acceptable unless they change the intended use.
+- Missing attributes do NOT count as contradictions unless they imply a different product category.
+- Ignore vendor-specific naming, abbreviations, or formatting differences.
+
+
 
 OUTPUT FORMAT (STRICT):
 Return ONLY valid JSON in this exact structure:
