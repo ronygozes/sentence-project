@@ -224,6 +224,3 @@ def run_llm_directly(chapters1, chapters2):
         df = pd.DataFrame.from_dict(results, orient='index').reset_index(drop=True)
         df.to_excel(f"/home/rony/projects/sentence-project/data/test/test_{model}_think_{think}_2048.xlsx")
 
-
-if __name__ == '__main__':
-    print('hello world')
