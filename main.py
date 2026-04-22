@@ -5,6 +5,7 @@ from configs import *
 from load_excel import load_clean_split
 from sentence_transformers_models import create_transformer_df
 from llm import llm_pipeline
+from test import run_llm_directly
 
 pd.set_option("display.max_rows", 20)
 pd.set_option("display.max_columns", 10)
@@ -12,18 +13,21 @@ pd.set_option("display.width", 1000)
 
 
 def create_index_matches(chapters1, chapters2):
-    os.makedirs(f'{data_dir}/index_matches', exist_ok=True)
+    os.makedirs(f'{data_dir}/{matches_dir}', exist_ok=True)
 
     # create matching index df per chapter using sentence-transformers
     transformer_files = [name.split('.')[0] for name in os.listdir(rf'{data_dir}/{matches_dir}')]
+    print(transformer_files)
     for chapter in chapters1:
-        if chapter not in transformer_files:
-            df1 = chapters1[chapter]
-            df2 = chapters2[chapter]
-            group_a = df1['תאור'].tolist()
-            group_b = df2['תאור'].tolist()
-            df = create_transformer_df(group_a, group_b)
-            df.to_excel(rf'{data_dir}/{matches_dir}/{chapter}_matches.xlsx')
+        if f'{chapter}_matches' in transformer_files:
+            continue
+
+        df1 = chapters1[chapter]
+        df2 = chapters2[chapter]
+        group_a = df1['תאור'].tolist()
+        group_b = df2['תאור'].tolist()
+        df = create_transformer_df(group_a, group_b)
+        df.to_excel(rf'{data_dir}/{matches_dir}/{chapter}_matches.xlsx')
 
 
 def recreate_items_df():
@@ -52,11 +56,15 @@ def main():
     llm models: "qwen3.5:latest", "deepseek-r1:8b", "deepseek-r1:14b-qwen-distill-q4_K_M"
     """
 
-    input1 = rf"{data_dir}/input_output/{file1}.xlsx"
-    input2 = rf"{data_dir}/input_output/{file2}.xlsx"
+    input1 = rf"{data_dir}/{io_dir}/{file1}.xlsx"
+    input2 = rf"{data_dir}/{io_dir}/{file2}.xlsx"
 
     chapters1, headers1 = load_clean_split(input1)
     chapters2, headers2 = load_clean_split(input2)
+
+    run_llm_directly(chapters1, chapters2)
+
+    exit()
 
     create_index_matches(chapters1, chapters2)
 

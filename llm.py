@@ -11,25 +11,6 @@ from configs import *
 from model_rules import models_data
 from llm_tests import test_cases
 
-verification_models = [
-    {'model': 'qwen3.5:latest', 'think': False, 'name': 'qwen3.5-no-think'},
-    {'model': 'qwen3.5:latest', 'think': True, 'name': 'qwen3.5-think'},
-    {'model': 'deepseek-r1:14b-qwen-distill-q4_K_M', 'think': False, 'name': 'deepseek-r1-q4-no-think'},
-    {'model': 'deepseek-r1:14b-qwen-distill-q4_K_M', 'think': True, 'name': 'deepseek-r1-q4-think'},
-    {'model': 'deepseek-r1:14b-qwen-distill-q8_0', 'think': False, 'name': 'deepseek-r1-q8-no-think'},
-    {'model': 'deepseek-r1:14b-qwen-distill-q8_0', 'think': True, 'name': 'deepseek-r1-q8-think'},
-]
-
-
-verification_models1 = [
-    {'model': 'qwen2.5:7b-instruct-q6_K', 'think': False, 'name': 'qwen2.5-instruct'},
-    {'model': 'qwen2.5:7b', 'think': False, 'name': 'qwen2.5-7b'},
-    {'model': 'qwen3.5:latest', 'think': False, 'name': 'qwen3.5-no-think'},
-    {'model': 'qwen3.5:latest', 'think': True, 'name': 'qwen3.5-think'},
-    {'model': 'deepseek-r1:14b-qwen-distill-q4_K_M', 'think': False, 'name': 'deepseek-r1-no-think'},
-    {'model': 'deepseek-r1:14b-qwen-distill-q4_K_M', 'think': True, 'name': 'deepseek-r1-think'}
-]
-
 
 def normalize_for_llm(text: str) -> str:
     # Replace inch symbol with safe text
@@ -199,7 +180,7 @@ def parse_verification_response(data):
 
 
 def build_candidate_dict(matches_path, chapters1, chapters2, chapter):
-    matches_df = pd.read_excel(rf'{matches_path}/{chapter}.xlsx', index_col=0)
+    matches_df = pd.read_excel(rf'{matches_path}/{chapter}_matches.xlsx', index_col=0)
     df1 = chapters1[chapter]
     df2 = chapters2[chapter]
     group_a = df1['תאור'].tolist()
@@ -247,7 +228,7 @@ def create_prompts(reference: str, candidates: list[str] | str, step: str):
 
 def run_llm_model(user_prompt: str, system_prompt: str, model: str, step: str, think: bool) -> dict:
     # Load model-specific settings
-    num_predict = 1024  # if not think else 4096
+    num_predict = 1024
     print('num_predict', num_predict)
     print('think', think)
 
@@ -262,7 +243,7 @@ def run_llm_model(user_prompt: str, system_prompt: str, model: str, step: str, t
     # Parse the result
     original_content = response["message"]["content"].strip()
     data =  return_data(original_content)
-
+    return data  # remove this line todo
     if step == "selection":
         result = parse_llm_response(data)
     else:
@@ -270,61 +251,12 @@ def run_llm_model(user_prompt: str, system_prompt: str, model: str, step: str, t
     return result
 
 
-# def first_pass(chapters1, chapters2, first_pass_path, matches_path, model):
-#     files = [name.split('.')[0] for name in os.listdir(first_pass_path)]
-#
-#     # loop over a dict of dfs
-#     for chapter in chapters1:
-#         if chapter in files:
-#             continue
-#
-#         items = build_candidate_dict(matches_path, chapters1, chapters2, chapter)
-#
-#         # loop over every item in group A
-#         results = {}
-#         for i, reference in enumerate(items):
-#             print(f'{i}. reference: {reference}')
-#             start = time.time()
-#
-#             normalizes_reference, normalized_candidates = normalize_items(reference, items[reference])
-#             user_prompt, system_prompt = create_prompts(normalizes_reference, normalized_candidates, step='selection')
-#             result = run_llm_model(user_prompt, system_prompt, model=model, step='selection')
-#
-#             # make sure best_match_index is the right index for best_match
-#             try:
-#                 if result.get("best_match") is None:
-#                     result["best_match_index"] = None
-#                 else:
-#                     found_best_match = False
-#                     for j, c in enumerate(normalized_candidates):
-#                         if c.strip() == result.get("best_match").strip():
-#                             found_best_match = True
-#                             result["best_match_index"] = j
-#                             break
-#                     if not found_best_match:
-#                         raise Exception
-#             except:
-#                 print(f'Result parse error in first pass:\n{result}')
-#                 result['best_match_index'] = None
-#                 result['best_match'] = None
-#
-#
-#             results[reference] = result
-#             compute_time = time.time()-start
-#             print(f'It took {compute_time} seconds\n')
-#             print(result)
-#             print('\n\n')
-#
-#         df = pd.DataFrame.from_dict(results, orient='index').reset_index(drop=True)
-#         df.to_excel(f"{first_pass_path}/{chapter}_first_pass.xlsx")
-
-
 def create_verified_llm_matches(chapters1, chapters2, first_pass_path, matches_path, model, verification_pass_path,
                                 think):
     files = [name.split('.')[0] for name in os.listdir(verification_pass_path)]
 
     for chapter in chapters1:
-        if chapter in files:
+        if f'{chapter}_verification_pass' in files:
             continue
 
         print(f"\n=== Verifying chapter {chapter} ===")
@@ -342,6 +274,7 @@ def create_verified_llm_matches(chapters1, chapters2, first_pass_path, matches_p
                     "is_comparable": False,
                     "reason": "No match found for reference"
                 }
+                print('No best match index exists\n')
                 continue
             else:
                 chosen_index = int(raw_index)
@@ -385,9 +318,10 @@ def selection_runs(chapters1, chapters2, first_pass_path, matches_path, model, v
         if f'{chapter}_{run_num}' in files:
             continue
 
+        print(f"\n=== Selecting from chapter {chapter} ===")
         if second_run:
             first_pass_df = pd.read_excel(rf'{first_pass_path}/{chapter}_first_pass.xlsx', index_col=0)
-            verified_df = pd.read_excel(rf'{verification_pass_path}/{chapter}_verification.xlsx', index_col=0)
+            verified_df = pd.read_excel(rf'{verification_pass_path}/{chapter}_verification_pass.xlsx', index_col=0)
         items = build_candidate_dict(matches_path, chapters1, chapters2, chapter)
 
         # loop over every item in group A
@@ -397,34 +331,33 @@ def selection_runs(chapters1, chapters2, first_pass_path, matches_path, model, v
             start = time.time()
 
             if second_run:
-                verified_item = verified_df.iloc[i]
-                is_comparable = verified_item.get("is_comparable")
+                is_comparable = verified_df.iloc[i]["is_comparable"]
                 if is_comparable:
                     result = first_pass_df.iloc[i].to_dict()
                     results[reference] = result
+                    print('match found')
                     continue
 
             normalizes_reference, normalized_candidates = normalize_items(reference, items[reference])
             user_prompt, system_prompt = create_prompts(normalizes_reference, normalized_candidates, step='selection')
             result = run_llm_model(user_prompt, system_prompt, model=model, step='selection', think=think)
 
-            # make sure best_match_index is the right index for best_match
-            try:
-                if result.get("best_match") is None:
+            idx = result.get("best_match_index")
+            if idx is None:
+                result["best_match"] = None
+            else:
+                try:
+                    idx = int(idx)
+                    if 0 <= idx < len(normalized_candidates):
+                        result["best_match"] = normalized_candidates[idx]
+                    else:
+                        # index is invalid
+                        result["best_match"] = None
+                        result["best_match_index"] = None
+                except:
+                    # index is not an integer
+                    result["best_match"] = None
                     result["best_match_index"] = None
-                else:
-                    found_best_match = False
-                    for j, c in enumerate(normalized_candidates):
-                        if c.strip() == result.get("best_match").strip():
-                            found_best_match = True
-                            result["best_match_index"] = j
-                            break
-                    if not found_best_match:
-                        raise Exception
-            except:
-                print(f'Result parse error in {run_num}:\n{result}')
-                result['best_match_index'] = None
-                result['best_match'] = None
 
             results[reference] = result
             compute_time = time.time() - start
@@ -437,13 +370,6 @@ def selection_runs(chapters1, chapters2, first_pass_path, matches_path, model, v
 
 
 def llm_pipeline(chapters1, chapters2):
-
-    debug_chapters = ['22']  # or None
-
-    if debug_chapters:
-        chapters1 = {k: chapters1[k] for k in debug_chapters}
-        chapters2 = {k: chapters2[k] for k in debug_chapters}
-
     first_pass_path = f'{data_dir}/{first_pass_dir}'
     second_pass_path = f'{data_dir}/{second_pass_dir}'
     verification_pass_path = f'{data_dir}/{verification_pass_dir}'
@@ -458,23 +384,14 @@ def llm_pipeline(chapters1, chapters2):
 
     # first selection pass
     selection_runs(chapters1, chapters2, first_pass_path=first_pass_path, matches_path=matches_path,
-                   model=first_pass_model)
+                   model=first_pass_model, think=False)
 
     # verification pass
-    for params in verification_models:
-        model, think, name = params['model'], params['think'], params['name']
-        start = time.time()
-        print(f'\n\nVerification with params:\n{params}')
-        model_verification_pass_path = f'{verification_pass_path}/{name}'
-        os.makedirs(model_verification_pass_path, exist_ok=True)
-        create_verified_llm_matches(chapters1, chapters2, first_pass_path=first_pass_path,
-                                    verification_pass_path=model_verification_pass_path, matches_path=matches_path,
-                                    model=model, think=think)
-        print(f'model: {model} took {time.time() - start} seconds\n')
-
-    exit()
+    create_verified_llm_matches(chapters1, chapters2, first_pass_path=first_pass_path,
+                                verification_pass_path=verification_pass_path, matches_path=matches_path,
+                                model=verification_model, think=False)
 
     # second selection pass
     selection_runs(chapters1, chapters2, first_pass_path=first_pass_path, matches_path=matches_path,
                    model=second_pass_model, verification_pass_path=verification_pass_path,
-                   second_pass_path=second_pass_path, second_run=True)
+                   second_pass_path=second_pass_path, second_run=True, think=True)
